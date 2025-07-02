@@ -1,6 +1,7 @@
 import express from "express";
 import User from "../model/user.js";
 import validator from "validator";
+import jwt from "jsonwebtoken";
 
 const authenticationRouter = express.Router();
 
@@ -67,6 +68,86 @@ authenticationRouter.post("/signup", async (req, res) => {
     });
   } catch (error) {
     console.error("Error during signup:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+authenticationRouter.post("/login", async (req, res) => {
+  try {
+    let { email, password } = req.body;
+    if (!email || !password) {
+      return res
+        .status(400)
+        .json({ message: "Email and password are required" });
+    }
+    email = validator.normalizeEmail(email.trim().toLowerCase());
+    const existingUser = await User.findOne({ email: email });
+    if (!existingUser) {
+      return res.status(400).json({ message: "User not found" });
+    }
+
+    const ispasswordValid = await existingUser.comparePassword(password);
+    if (!ispasswordValid) {
+      return res.status(400).json({ message: "Invalid credentials" });
+    }
+
+    const token = existingUser.getJWT();
+    res.cookie("token", token, {
+      httpOnly: true,
+      maxAge: Number(process.env.COOKIES_AGE) || 24 * 60 * 60 * 1000,
+    });
+    res.status(200).json({
+      message: `Welcome back ${existingUser.firstName} ${existingUser.lastName}`,
+      user: {
+        email: existingUser.email,
+        firstName: existingUser.firstName,
+        lastName: existingUser.lastName,
+        photo: existingUser.photo,
+        _id: existingUser._id,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+authenticationRouter.post("/logout", (req, res) => {
+  try {
+    res.clearCookie("token");
+    res.status(200).json({ message: "Logged out successfully" });
+  } catch (error) {
+    console.error("Error during logout:", error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+authenticationRouter.get("/check-auth", async (req, res) => {
+  try {
+    const token = req.cookies.token;
+    if (!token) {
+      return res.status(401).json({ message: "Unauthorized, please login" });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ message: "Unauthorized, please login" });
+    }
+    if (!decoded || !decoded.userId) {
+      return res.status(401).json({ message: "Unauthorized, please login" });
+    }
+    const user = await User.findById(decoded.userId).select(
+      "_id email firstName lastName photo"
+    );
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+    res.status(200).json({
+      message: "User is authenticated",
+      user,
+    });
+  } catch (error) {
     res.status(500).json({ message: "Internal server error" });
   }
 });

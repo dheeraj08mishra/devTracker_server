@@ -7,11 +7,11 @@ import connectDB from "./config/database.js";
 import authenticationRouter from "./router/authenticationRouter.js";
 
 app.use(express.json());
-app.use(cookieParser()); // Middleware to parse cookies
+app.use(cookieParser());
 app.use(
   cors({
     origin: "http://localhost:5173",
-    credentials: true, // Allow credentials (cookies) to be sent
+    credentials: true,
   })
 );
 
