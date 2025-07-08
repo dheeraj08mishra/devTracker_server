@@ -5,6 +5,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 import connectDB from "./config/database.js";
 import authenticationRouter from "./router/authenticationRouter.js";
+import dsalogRouter from "./router/dsaLogRouter.js";
 
 app.use(express.json());
 app.use(cookieParser());
@@ -16,6 +17,7 @@ app.use(
 );
 
 app.use("/api", authenticationRouter);
+app.use("/api/dsa", dsalogRouter);
 
 connectDB()
   .then(() => {
